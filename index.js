@@ -49,25 +49,42 @@ function shuffle(array) {
 // Check if three cards form a straight flush
 function isStraightFlush(cards) {
   // Must have exactly 3 valid cards
-  if (!cards || cards.length !== 3) return false;
-  if (cards.some(c => !c || !c.rank || !c.suit)) return false;
-  if (cards.some(c => c.rank === 'JOKER')) return false;
+  if (!cards || cards.length !== 3) {
+    console.log('isStraightFlush: Invalid cards array', cards);
+    return false;
+  }
+  if (cards.some(c => !c || !c.rank || !c.suit)) {
+    console.log('isStraightFlush: Missing card properties', cards);
+    return false;
+  }
+  if (cards.some(c => c.rank === 'JOKER')) {
+    console.log('isStraightFlush: Contains joker');
+    return false;
+  }
 
   // Must all be same suit
   const suit = cards[0].suit;
-  if (!cards.every(c => c.suit === suit)) return false;
+  if (!cards.every(c => c.suit === suit)) {
+    console.log('isStraightFlush: Not same suit', cards.map(c => c.suit));
+    return false;
+  }
 
   // Must be consecutive ranks - get indices in RANK_ORDER
   const indices = cards.map(c => RANK_ORDER.indexOf(c.rank));
+  console.log('isStraightFlush: Rank indices', indices, 'for ranks', cards.map(c => c.rank));
 
   // Check all cards have valid ranks
-  if (indices.some(i => i === -1)) return false;
+  if (indices.some(i => i === -1)) {
+    console.log('isStraightFlush: Invalid rank found');
+    return false;
+  }
 
   // Sort to check for consecutive sequence
   indices.sort((a, b) => a - b);
 
   // Check if consecutive (e.g., [4,5,6] or [10,11,12] for J,Q,K)
   const isConsecutive = indices[1] === indices[0] + 1 && indices[2] === indices[1] + 1;
+  console.log('isStraightFlush: isConsecutive =', isConsecutive);
 
   return isConsecutive;
 }
@@ -75,14 +92,29 @@ function isStraightFlush(cards) {
 // Check if three cards are three of a kind
 function isThreeOfAKind(cards) {
   // Must have exactly 3 valid cards
-  if (!cards || cards.length !== 3) return false;
-  if (cards.some(c => !c || !c.rank)) return false;
-  if (cards.some(c => c.rank === 'JOKER')) return false;
+  if (!cards || cards.length !== 3) {
+    console.log('isThreeOfAKind: Invalid cards array', cards);
+    return false;
+  }
+  if (cards.some(c => !c || !c.rank)) {
+    console.log('isThreeOfAKind: Missing card properties', cards);
+    return false;
+  }
+  if (cards.some(c => c.rank === 'JOKER')) {
+    console.log('isThreeOfAKind: Contains joker');
+    return false;
+  }
 
-  return cards[0].rank === cards[1].rank && cards[1].rank === cards[2].rank;
+  const ranks = cards.map(c => c.rank);
+  const isMatch = cards[0].rank === cards[1].rank && cards[1].rank === cards[2].rank;
+  console.log('isThreeOfAKind: Ranks =', ranks, 'isMatch =', isMatch);
+  return isMatch;
 }
 
 function calculateScore(cards) {
+  console.log('=== calculateScore called ===');
+  console.log('Cards:', JSON.stringify(cards.map(c => c ? `${c.rank}${c.suit}` : 'null')));
+
   let score = 0;
   const scoredCards = new Set();
 
@@ -91,40 +123,52 @@ function calculateScore(cards) {
   // Check columns (indices: 0-3-6, 1-4-7, 2-5-8)
   const cols = [[0, 3, 6], [1, 4, 7], [2, 5, 8]];
 
-  const checkLine = (indices) => {
+  const checkLine = (indices, lineName) => {
     const lineCards = indices.map(i => cards[i]);
+    console.log(`Checking ${lineName} [${indices}]:`, lineCards.map(c => c ? `${c.rank}${c.suit}` : 'null'));
+
     if (isStraightFlush(lineCards)) {
+      console.log(`  -> STRAIGHT FLUSH found! Adding -8 points`);
       indices.forEach(i => scoredCards.add(i));
       return -8; // Straight flush bonus
     }
     if (isThreeOfAKind(lineCards)) {
+      console.log(`  -> THREE OF A KIND found! Adding 0 points`);
       indices.forEach(i => scoredCards.add(i));
       return 0; // Three of a kind = 0
     }
+    console.log(`  -> No special combination`);
     return null;
   };
 
   // Check all rows and columns for special combinations
-  for (const row of rows) {
-    const lineScore = checkLine(row);
+  for (let i = 0; i < rows.length; i++) {
+    const lineScore = checkLine(rows[i], `Row ${i}`);
     if (lineScore !== null) {
       score += lineScore;
+      console.log(`After row ${i}: score = ${score}`);
     }
   }
-  for (const col of cols) {
-    const lineScore = checkLine(col);
+  for (let i = 0; i < cols.length; i++) {
+    const lineScore = checkLine(cols[i], `Col ${i}`);
     if (lineScore !== null) {
       score += lineScore;
+      console.log(`After col ${i}: score = ${score}`);
     }
   }
+
+  console.log('Scored cards (special combinations):', Array.from(scoredCards));
 
   // Add up remaining cards not part of special combinations
   for (let i = 0; i < 9; i++) {
     if (!scoredCards.has(i) && cards[i]) {
-      score += CARD_VALUES[cards[i].rank];
+      const cardValue = CARD_VALUES[cards[i].rank];
+      console.log(`Adding card ${i} (${cards[i].rank}${cards[i].suit}): ${cardValue} points`);
+      score += cardValue;
     }
   }
 
+  console.log('=== Final score:', score, '===');
   return score;
 }
 
