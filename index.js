@@ -48,20 +48,37 @@ function shuffle(array) {
 
 // Check if three cards form a straight flush
 function isStraightFlush(cards) {
-  if (cards.some(c => !c || c.rank === 'JOKER')) return false;
+  // Must have exactly 3 valid cards
+  if (!cards || cards.length !== 3) return false;
+  if (cards.some(c => !c || !c.rank || !c.suit)) return false;
+  if (cards.some(c => c.rank === 'JOKER')) return false;
 
   // Must all be same suit
   const suit = cards[0].suit;
   if (!cards.every(c => c.suit === suit)) return false;
 
-  // Must be consecutive ranks
-  const indices = cards.map(c => RANK_ORDER.indexOf(c.rank)).sort((a, b) => a - b);
-  return indices[1] === indices[0] + 1 && indices[2] === indices[1] + 1;
+  // Must be consecutive ranks - get indices in RANK_ORDER
+  const indices = cards.map(c => RANK_ORDER.indexOf(c.rank));
+
+  // Check all cards have valid ranks
+  if (indices.some(i => i === -1)) return false;
+
+  // Sort to check for consecutive sequence
+  indices.sort((a, b) => a - b);
+
+  // Check if consecutive (e.g., [4,5,6] or [10,11,12] for J,Q,K)
+  const isConsecutive = indices[1] === indices[0] + 1 && indices[2] === indices[1] + 1;
+
+  return isConsecutive;
 }
 
 // Check if three cards are three of a kind
 function isThreeOfAKind(cards) {
-  if (cards.some(c => !c || c.rank === 'JOKER')) return false;
+  // Must have exactly 3 valid cards
+  if (!cards || cards.length !== 3) return false;
+  if (cards.some(c => !c || !c.rank)) return false;
+  if (cards.some(c => c.rank === 'JOKER')) return false;
+
   return cards[0].rank === cards[1].rank && cards[1].rank === cards[2].rank;
 }
 
