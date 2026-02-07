@@ -173,13 +173,22 @@ function sendGameState(room) {
   });
 }
 
-function checkRoundEnd(room) {
-  const finisher = room.players.find(p => p.cards.every(c => c.faceUp));
-  if (finisher) {
-    endRound(room);
-    return true;
+// Reshuffle discard pile into draw pile when draw pile is empty
+function reshuffleDiscardIntoDraw(room) {
+  if (room.drawPile.length > 0 || room.discardPile.length <= 1) {
+    return false;
   }
-  return false;
+
+  // Keep the top card in discard, shuffle the rest into draw pile
+  const topDiscard = room.discardPile[room.discardPile.length - 1];
+  const cardsToShuffle = room.discardPile.slice(0, -1).map(c => ({ ...c, faceUp: false }));
+
+  // Shuffle the cards
+  room.drawPile = shuffle(cardsToShuffle);
+  room.discardPile = [topDiscard];
+
+  console.log(`Reshuffled ${room.drawPile.length} cards into draw pile`);
+  return true;
 }
 
 function endRound(room) {
@@ -311,7 +320,7 @@ io.on('connection', (socket) => {
 
   socket.on('drawFromPile', () => {
     const room = rooms.get(socket.roomCode);
-    if (!room || room.selectionPhase) return;
+    if (!room || room.selectionPhase || room.roundOver) return;
 
     const playerIdx = room.players.findIndex(p => p.socket.id === socket.id);
     if (playerIdx !== room.currentPlayerIndex) return;
@@ -319,8 +328,13 @@ io.on('connection', (socket) => {
     const player = room.players[playerIdx];
     if (player.drawnCard || player.hasDrawnThisTurn) return;
 
+    // Reshuffle discard into draw if needed
     if (room.drawPile.length === 0) {
-      socket.emit('error', 'Draw pile empty');
+      reshuffleDiscardIntoDraw(room);
+    }
+
+    if (room.drawPile.length === 0) {
+      socket.emit('error', 'No cards available to draw');
       return;
     }
 
@@ -372,9 +386,7 @@ io.on('connection', (socket) => {
     player.mustRevealCard = false;
     player.hasDrawnThisTurn = false;
 
-    if (!checkRoundEnd(room)) {
-      advanceTurn(room);
-    }
+    advanceTurn(room);
     sendGameState(room);
   });
 
@@ -397,9 +409,7 @@ io.on('connection', (socket) => {
     player.hasDrawnThisTurn = false;
     player.mustRevealCard = false;
 
-    if (!checkRoundEnd(room)) {
-      advanceTurn(room);
-    }
+    advanceTurn(room);
     sendGameState(room);
   });
 
