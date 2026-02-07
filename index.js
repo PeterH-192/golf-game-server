@@ -155,6 +155,8 @@ function sendGameState(room) {
       myIndex: idx,
       drawnCard: player.drawnCard || null,
       hasDrawnThisTurn: player.hasDrawnThisTurn || false,
+      drawnFromDiscard: player.drawnFromDiscard || false,
+      mustRevealCard: player.mustRevealCard || false,
       message: room.selectionPhase
         ? (room.playersReady.has(idx)
             ? `Waiting for other players... (${room.playersReady.size}/${room.players.length} ready)`
@@ -314,6 +316,9 @@ io.on('connection', (socket) => {
     const playerIdx = room.players.findIndex(p => p.socket.id === socket.id);
     if (playerIdx !== room.currentPlayerIndex) return;
 
+    const player = room.players[playerIdx];
+    if (player.drawnCard || player.hasDrawnThisTurn) return;
+
     if (room.drawPile.length === 0) {
       socket.emit('error', 'Draw pile empty');
       return;
@@ -321,8 +326,9 @@ io.on('connection', (socket) => {
 
     const card = room.drawPile.pop();
     card.faceUp = true;
-    room.players[playerIdx].drawnCard = card;
-    room.players[playerIdx].hasDrawnThisTurn = true;
+    player.drawnCard = card;
+    player.drawnFromDiscard = false; // Track source - can discard this
+    player.hasDrawnThisTurn = true;
     sendGameState(room);
   });
 
@@ -333,11 +339,15 @@ io.on('connection', (socket) => {
     const playerIdx = room.players.findIndex(p => p.socket.id === socket.id);
     if (playerIdx !== room.currentPlayerIndex) return;
 
+    const player = room.players[playerIdx];
+    if (player.drawnCard || player.hasDrawnThisTurn) return;
+
     if (room.discardPile.length === 0) return;
 
     const card = room.discardPile.pop();
-    room.players[playerIdx].drawnCard = card;
-    room.players[playerIdx].hasDrawnThisTurn = true;
+    player.drawnCard = card;
+    player.drawnFromDiscard = true; // Track source - MUST swap, can't discard
+    player.hasDrawnThisTurn = true;
     sendGameState(room);
   });
 
@@ -349,7 +359,9 @@ io.on('connection', (socket) => {
     if (playerIdx !== room.currentPlayerIndex) return;
 
     const player = room.players[playerIdx];
-    if (player.hasDrawnThisTurn || player.drawnCard) return;
+
+    // Can only reveal after discarding a drawn card (from draw pile)
+    if (!player.mustRevealCard) return;
 
     if (player.cards[cardIndex].faceUp) {
       socket.emit('error', 'Card already revealed');
@@ -357,6 +369,7 @@ io.on('connection', (socket) => {
     }
 
     player.cards[cardIndex] = { ...player.cards[cardIndex], faceUp: true };
+    player.mustRevealCard = false;
     player.hasDrawnThisTurn = false;
 
     if (!checkRoundEnd(room)) {
@@ -380,7 +393,9 @@ io.on('connection', (socket) => {
     oldCard.faceUp = true;
     room.discardPile.push(oldCard);
     player.drawnCard = null;
+    player.drawnFromDiscard = false;
     player.hasDrawnThisTurn = false;
+    player.mustRevealCard = false;
 
     if (!checkRoundEnd(room)) {
       advanceTurn(room);
@@ -398,12 +413,29 @@ io.on('connection', (socket) => {
     const player = room.players[playerIdx];
     if (!player.drawnCard) return;
 
+    // Can only discard if drawn from draw pile, not from discard
+    if (player.drawnFromDiscard) {
+      socket.emit('error', 'Must swap when taking from discard pile');
+      return;
+    }
+
     room.discardPile.push(player.drawnCard);
     player.drawnCard = null;
-    player.hasDrawnThisTurn = false;
 
-    advanceTurn(room);
-    sendGameState(room);
+    // Check if there are any face-down cards to reveal
+    const hasFaceDownCards = player.cards.some(c => !c.faceUp);
+
+    if (hasFaceDownCards) {
+      // Must reveal a card before turn ends
+      player.mustRevealCard = true;
+      sendGameState(room);
+    } else {
+      // No face-down cards, turn is over
+      player.hasDrawnThisTurn = false;
+      player.mustRevealCard = false;
+      advanceTurn(room);
+      sendGameState(room);
+    }
   });
 
   socket.on('knock', () => {
