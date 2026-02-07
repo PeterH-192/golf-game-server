@@ -260,15 +260,23 @@ function reshuffleDiscardIntoDraw(room) {
 }
 
 function endRound(room) {
+  console.log('========== END ROUND ==========');
   room.roundOver = true;
   room.finalRound = false;
   room.knocker = null;
   room.playersWithFinalTurn = null;
 
   room.players.forEach(p => {
+    console.log(`\n=== Scoring for player: ${p.name} ===`);
+    console.log('Cards before flip:', JSON.stringify(p.cards.map(c => c ? `${c.rank}${c.suit}` : 'null')));
     p.cards = p.cards.map(c => ({ ...c, faceUp: true }));
-    room.scores[p.name] = calculateScore(p.cards);
+    console.log('Cards after flip:', JSON.stringify(p.cards.map(c => c ? `${c.rank}${c.suit}` : 'null')));
+    const score = calculateScore(p.cards);
+    console.log(`Final score for ${p.name}: ${score}`);
+    room.scores[p.name] = score;
   });
+  console.log('\nAll scores:', room.scores);
+  console.log('========== END OF END ROUND ==========\n');
 
   const minScore = Math.min(...Object.values(room.scores));
   const winners = Object.entries(room.scores)
