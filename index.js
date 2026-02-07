@@ -91,13 +91,15 @@ function isStraightFlush(cards) {
 
 // Check if three cards are three of a kind
 function isThreeOfAKind(cards) {
+  console.log('isThreeOfAKind called with:', JSON.stringify(cards));
+
   // Must have exactly 3 valid cards
   if (!cards || cards.length !== 3) {
-    console.log('isThreeOfAKind: Invalid cards array', cards);
+    console.log('isThreeOfAKind: Invalid cards array length:', cards?.length);
     return false;
   }
   if (cards.some(c => !c || !c.rank)) {
-    console.log('isThreeOfAKind: Missing card properties', cards);
+    console.log('isThreeOfAKind: Missing card or rank property');
     return false;
   }
   if (cards.some(c => c.rank === 'JOKER')) {
@@ -105,9 +107,14 @@ function isThreeOfAKind(cards) {
     return false;
   }
 
-  const ranks = cards.map(c => c.rank);
-  const isMatch = cards[0].rank === cards[1].rank && cards[1].rank === cards[2].rank;
-  console.log('isThreeOfAKind: Ranks =', ranks, 'isMatch =', isMatch);
+  const rank0 = cards[0].rank;
+  const rank1 = cards[1].rank;
+  const rank2 = cards[2].rank;
+  console.log(`isThreeOfAKind: Comparing ranks: "${rank0}" === "${rank1}" && "${rank1}" === "${rank2}"`);
+  console.log(`  Types: ${typeof rank0}, ${typeof rank1}, ${typeof rank2}`);
+
+  const isMatch = rank0 === rank1 && rank1 === rank2;
+  console.log('isThreeOfAKind: Result =', isMatch);
   return isMatch;
 }
 
