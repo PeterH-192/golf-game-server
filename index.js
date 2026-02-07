@@ -251,7 +251,7 @@ io.on('connection', (socket) => {
     }
     const room = {
       code: roomCode,
-      players: [{ socket, name: playerName, cards: [], selectedInitialCards: [] }],
+      players: [{ socket, name: playerName, cards: [], selectedInitialCards: [], disconnected: false }],
       drawPile: [],
       discardPile: [],
       currentPlayerIndex: 0,
@@ -261,6 +261,7 @@ io.on('connection', (socket) => {
     rooms.set(roomCode, room);
     socket.join(roomCode);
     socket.roomCode = roomCode;
+    socket.playerName = playerName;
     socket.emit('roomCreated', { roomCode });
     console.log(`Room ${roomCode} created by ${playerName}`);
   });
@@ -271,8 +272,39 @@ io.on('connection', (socket) => {
       socket.emit('error', 'Room not found');
       return;
     }
+
+    // Check if this player is rejoining (same name, was disconnected)
+    const existingPlayerIdx = room.players.findIndex(p => p.name === playerName);
+
+    if (existingPlayerIdx !== -1) {
+      // Player is rejoining - update their socket
+      const existingPlayer = room.players[existingPlayerIdx];
+      existingPlayer.socket = socket;
+      existingPlayer.disconnected = false;
+      socket.join(roomCode);
+      socket.roomCode = roomCode;
+      socket.playerName = playerName;
+
+      console.log(`${playerName} rejoined room ${roomCode}`);
+
+      // If game has started, send them the current game state and notify others
+      if (room.started) {
+        // Notify other players that this player reconnected
+        socket.to(roomCode).emit('playerReconnected', {
+          playerName: playerName
+        });
+        sendGameState(room);
+      } else {
+        io.to(roomCode).emit('playerJoined', {
+          players: room.players.filter(p => !p.disconnected).map(p => p.name)
+        });
+      }
+      return;
+    }
+
+    // New player joining
     if (room.started) {
-      socket.emit('error', 'Game already started');
+      socket.emit('error', 'Game already started. Use the same name to rejoin.');
       return;
     }
     if (room.players.length >= 4) {
@@ -280,12 +312,13 @@ io.on('connection', (socket) => {
       return;
     }
 
-    room.players.push({ socket, name: playerName, cards: [], selectedInitialCards: [] });
+    room.players.push({ socket, name: playerName, cards: [], selectedInitialCards: [], disconnected: false });
     socket.join(roomCode);
     socket.roomCode = roomCode;
+    socket.playerName = playerName;
 
     io.to(roomCode).emit('playerJoined', {
-      players: room.players.map(p => p.name)
+      players: room.players.filter(p => !p.disconnected).map(p => p.name)
     });
     console.log(`${playerName} joined room ${roomCode}`);
   });
@@ -500,13 +533,45 @@ io.on('connection', (socket) => {
     if (socket.roomCode) {
       const room = rooms.get(socket.roomCode);
       if (room) {
-        room.players = room.players.filter(p => p.socket.id !== socket.id);
-        if (room.players.length === 0) {
-          rooms.delete(socket.roomCode);
-        } else {
-          io.to(socket.roomCode).emit('playerLeft', {
-            players: room.players.map(p => p.name)
-          });
+        const playerIdx = room.players.findIndex(p => p.socket.id === socket.id);
+
+        if (playerIdx !== -1) {
+          const player = room.players[playerIdx];
+
+          if (room.started) {
+            // Game in progress - mark as disconnected but don't remove
+            player.disconnected = true;
+            console.log(`${player.name} disconnected from room ${socket.roomCode} (can rejoin)`);
+
+            // Notify other players
+            io.to(socket.roomCode).emit('playerDisconnected', {
+              playerName: player.name,
+              players: room.players.map(p => ({ name: p.name, disconnected: p.disconnected }))
+            });
+
+            // Check if all players are disconnected
+            const allDisconnected = room.players.every(p => p.disconnected);
+            if (allDisconnected) {
+              // Delete room after a timeout if no one rejoins
+              setTimeout(() => {
+                const checkRoom = rooms.get(socket.roomCode);
+                if (checkRoom && checkRoom.players.every(p => p.disconnected)) {
+                  rooms.delete(socket.roomCode);
+                  console.log(`Room ${socket.roomCode} deleted - all players disconnected`);
+                }
+              }, 300000); // 5 minutes timeout
+            }
+          } else {
+            // Game hasn't started - remove player completely
+            room.players.splice(playerIdx, 1);
+            if (room.players.length === 0) {
+              rooms.delete(socket.roomCode);
+            } else {
+              io.to(socket.roomCode).emit('playerLeft', {
+                players: room.players.map(p => p.name)
+              });
+            }
+          }
         }
       }
     }
