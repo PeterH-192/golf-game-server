@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Golf Card Game</title>
+    <!-- Google Fonts for Modern Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div id="ambient-background">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- UI ALERTS / NOTIFICATIONS -->
+    <div id="notification-container"></div>
+
+    <!-- LOBBY SCREEN -->
+    <section id="lobby-screen" class="glass-panel active">
+        <h1 class="title">Neon <span>Golf</span></h1>
+        <p class="subtitle">The classic 9-card game</p>
+        
+        <div class="input-group">
+            <label for="player-name">Player Name</label>
+            <input type="text" id="player-name" placeholder="Enter your name" maxlength="12">
+        </div>
+
+        <div class="input-group">
+            <label for="room-code">Room Code</label>
+            <input type="text" id="room-code" placeholder="e.g. ALPHA" maxlength="10">
+        </div>
+
+        <div class="button-group">
+            <button id="btn-create" class="btn primary">Create Room</button>
+            <button id="btn-join" class="btn secondary">Join Room</button>
+        </div>
+
+        <!-- Waiting Room Area -->
+        <div id="waiting-area" class="hidden">
+            <h2>Room: <span id="display-room-code" class="highlight"></span></h2>
+            <div class="players-list">
+                <h3>Players</h3>
+                <ul id="lobby-players"></ul>
+            </div>
+            <button id="btn-start" class="btn primary hidden">Start Game</button>
+            <p id="waiting-msg" class="pulse-text">Waiting for host to start...</p>
+        </div>
+    </section>
+
+    <!-- GAME SCREEN -->
+    <section id="game-screen" class="hidden">
+        
+        <!-- Game HUD (Top Bar) -->
+        <header class="game-hud glass-panel">
+            <div class="hud-left">
+                <span class="room-badge">Room: <span id="hud-room"></span></span>
+                <span class="round-badge hidden" id="round-indicator">Final Round!</span>
+            </div>
+            <div class="hud-center">
+                <h2 id="turn-indicator">Waiting...</h2>
+                <p id="action-message">Connecting...</p>
+            </div>
+            <div class="hud-right">
+                <button id="btn-knock" class="btn danger hidden" title="Knock to start the final round!">KNOCK</button>
+                <div id="scores-container" class="hidden"></div>
+                <button id="btn-new-round" class="btn primary hidden">Play Again</button>
+            </div>
+        </header>
+
+        <!-- OPPONENTS AREA -->
+        <div id="opponents-container">
+            <!-- Opponents injected via JS -->
+        </div>
+
+        <!-- TABLE CENTER (Piles) -->
+        <div class="table-center">
+            <div class="pile draw-pile" id="draw-pile">
+                <div class="card card-back glass-card">
+                    <div class="card-inner-pattern"></div>
+                </div>
+                <!-- Drawn card will appear on top of this container if player is holding it -->
+                <div id="drawn-card-container" class="hidden">
+                    <div class="card glass-card" id="drawn-card-display"></div>
+                    <div class="drawn-card-actions">
+                        <button id="btn-discard-drawn" class="btn secondary small">Discard & Reveal</button>
+                        <p class="hint">Or drag/click to swap</p>
+                    </div>
+                </div>
+                <div class="pile-count" id="draw-count">54</div>
+            </div>
+
+            <div class="pile discard-pile" id="discard-pile">
+                <!-- Discarded cards go here -->
+                <div class="card glass-card empty-slot"></div>
+            </div>
+        </div>
+
+        <!-- CURRENT PLAYER AREA -->
+        <div class="my-player-area">
+            <div class="player-info glass-panel">
+                <h3 id="my-name">Player</h3>
+                <span class="score-badge hidden" id="my-score">Score: 0</span>
+            </div>
+            <div class="card-grid" id="my-grid">
+                <!-- 9 Cards injected via JS -->
+            </div>
+        </div>
+
+    </section>
+
+    <!-- Modal Overlay for End Game -->
+    <div id="end-game-modal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel">
+            <h1 id="winner-announcement">Game Over</h1>
+            <div id="final-scores-list" class="final-scores"></div>
+            <button id="btn-modal-new-round" class="btn primary large">Next Round</button>
+        </div>
+    </div>
+
+    <!-- Socket.IO dependency -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/client.js"></script>
+</body>
+</html>
