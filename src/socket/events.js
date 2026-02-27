@@ -170,11 +170,26 @@ module.exports = function configureSocketEvents(io) {
             }
 
             const card = room.drawPile.pop();
-            card.faceUp = true;
+            card.faceUp = false; // Initially face down so client can animate it flipping
             player.drawnCard = card;
             player.drawnFromDiscard = false; // Track source - can discard this
             player.hasDrawnThisTurn = true;
             sendGameState(room);
+        });
+
+        socket.on('markDrawnCardSeen', () => {
+            const room = rooms.get(socket.roomCode);
+            if (!room) return;
+
+            const playerIdx = room.players.findIndex(p => p.socket.id === socket.id);
+            if (playerIdx !== room.currentPlayerIndex) return;
+
+            const player = room.players[playerIdx];
+            if (player.drawnCard && !player.drawnCard.faceUp) {
+                player.drawnCard.faceUp = true;
+                // We do NOT broadcast state immediately here to prevent interrupting the client CSS animation, 
+                // but the internal state is now correct for future updates.
+            }
         });
 
         socket.on('drawFromDiscard', () => {

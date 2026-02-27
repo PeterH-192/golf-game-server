@@ -230,7 +230,33 @@ function renderTable(state) {
 
     // Render Currently Drawn Card (Floats next to draw pile)
     if (state.drawnCard) {
-        drawnCardDisplay.innerHTML = getCardHTML(state.drawnCard, -1, false, 'drawn').replace('class="', 'class="flip '); // add flip animation to inner card
+        // Render it. If it was just drawn (faceUp is false), we will add a brief timeout and then flip it by adding a CSS class.
+        drawnCardDisplay.innerHTML = getCardHTML(state.drawnCard, -1, false, 'drawn');
+
+        // If it's face down from the server, we animate it flipping face up visually 
+        if (!state.drawnCard.faceUp) {
+            setTimeout(() => {
+                const cardEl = drawnCardDisplay.querySelector('.card');
+                if (cardEl) {
+                    cardEl.classList.add('flip');
+                    // Change contents to face up after halfway through animation
+                    setTimeout(() => {
+                        cardEl.classList.remove('card-back');
+                        // Rerender HTML inside this card tricking the faceUp logic
+                        const tempCard = { ...state.drawnCard, faceUp: true };
+                        drawnCardDisplay.innerHTML = getCardHTML(tempCard, -1, false, 'drawn');
+                    }, 300);
+                }
+            }, 50);
+            // Inform server we've officially revealed it to ourselves so next state updates keep it faceUp
+            if (isMyTurnLocal) {
+                socket.emit('markDrawnCardSeen');
+            }
+        } else {
+            // Already seen, just render face up
+            drawnCardDisplay.innerHTML = getCardHTML(state.drawnCard, -1, false, 'drawn').replace('class="', 'class="flip ');
+        }
+
         drawnCardContainer.classList.remove('hidden');
 
         // Only show discard button if we drew from deck, not from discard pile
