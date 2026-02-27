@@ -147,6 +147,11 @@ socket.on('gameState', (state) => {
         myNameDisplay.innerText = myName;
     }
 
+    // Clear previous selection if this is a new round
+    if (currentGameState && currentGameState.roundOver && !state.roundOver) {
+        selectedForOpening = [];
+    }
+
     currentGameState = state;
     isMyTurnLocal = state.currentPlayerIndex === state.myIndex;
 
