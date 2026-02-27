@@ -62,19 +62,30 @@ function getCardHTML(card, index = -1, isInteractive = false, context = 'grid') 
     if (!card) return `<div class="card glass-card empty-slot"></div>`;
 
     let classes = 'card glass-card';
-    if (!card.faceUp) classes += ' card-back';
-    else if (card.suit === '♥' || card.suit === '♦') classes += ' suit-hearts';
-    else classes += ' suit-spades';
+    if (!card.faceUp) {
+        classes += ' card-back';
+    } else {
+        if (card.rank === 'JOKER') classes += ' suit-joker';
+        else if (card.suit === '♥' || card.suit === '♦') classes += ' suit-hearts';
+        else classes += ' suit-spades';
+    }
 
     if (isInteractive) classes += ' interactive';
     if (context === 'grid' && selectedForOpening.includes(index)) classes += ' selected';
 
     let content = '';
     if (card.faceUp) {
-        content = `
-            <div class="rank-top-left">${card.rank}</div>
-            <div class="suit-center">${card.suit}</div>
-        `;
+        if (card.rank === 'JOKER') {
+            content = `
+                <div class="joker-text">JOKER</div>
+                <div class="suit-center" style="font-size: 2.2rem;">🃏</div>
+            `;
+        } else {
+            content = `
+                <div class="rank-top-left">${card.rank}</div>
+                <div class="suit-center">${card.suit}</div>
+            `;
+        }
     } else {
         content = `<div class="card-inner-pattern"></div>`;
     }
